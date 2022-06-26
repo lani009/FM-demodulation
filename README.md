@@ -1,78 +1,53 @@
-```python
-# help from https://witestlab.poly.edu/blog/capture-and-decode-fm-radio/
-%matplotlib inline
-import numpy as np
-from rtlsdr import RtlSdr
-from scipy import signal
-import matplotlib.pyplot as plt
-import wave
-```
+# RTL-SDR과 Numpy, Scipy를 이용한 FM 라디오 복조
+
+## What is RTL-SDR?
+
+RTL-SDR은 RTL2832칩셋을 이용해 저렴한 가격으로 만들어진 SDR 장비를 말한다.
+SDR을 활용하면 컴퓨터 CPU의 무궁무진한 범용 컴퓨팅 능력을 이용하여,
+내가 원하는 방식으로 무선 신호를 처리하게끔 소프트웨어를 개발할 수 있다.
+
+가령, 8PSK 디지털통신을 디코딩한다고 가정해보자.
+RTL-SDR 장비와 안테나만 있다면 모든 준비는 끝났다.
+8PSK를 디코딩 할 수 있도록 소프트웨어를 직접 개발하면 된다.
+
+이 레포지터리에서는 FM 라디오신호를 복조할 수 있는 소프트웨어를 개발하고자 한다.
+실제 FM 라디오의 전자회로를 소프트웨어적으로 구현할 수 있게끔 Numpy와 Scipy를 이용하여
+필터와 다운컨버터 등 여러가지를 개발해 볼 것이다.
+
+## Source codes
+
+- main SRC
+
+    [FM Demod](FM%20radio%20demodulator.ipynb)
+
+- fft test
+
+    [FFT Test](sdr_fft.ipynb)
+
+- realtime fm radio
+
+    [RealtimeRadio](RealtimeRadio.py)
+
+- experiment result - radio audio
+
+    [ad1](wbfm.wav)
+
+    [ad2](wbfm_test.wav)
 
 
-```python
-sdr = RtlSdr()
+## Figure
 
-duration = 30
-F_station = int(95.9e6) # 95.9 MHz   MBC 표준 FM
-F_offset = 250000
+### Specgram of raw input
 
-Fc = F_station - F_offset
-Rs = int(2.8e6)
-N = int(duration * Rs)
-
-# configure device
-sdr.set_sample_rate(Rs)
-sdr.set_center_freq(Fc)
-sdr.set_freq_correction(66)
-sdr.set_gain(33.8)
-
-samples = sdr.read_samples(N)
-
-sdr.close()
-del(sdr)
-```
+![x1](img/FM%20radio%20demodulator_2_0.png)
 
 
-```python
-x1 = np.array(samples).astype("complex64")
+### Specgram of shifted in frequency domain
 
-plt.specgram(x1, NFFT=2048, Fs=Rs, vmin=-140, vmax=-50)
-
-plt.title("x1")
-plt.ylim(-Rs/2, Rs/2)
-plt.savefig('./figure/x1.png', dpi=200, facecolor='#eeeeee')
-plt.show()
-```
-
-
-    
-![png](img/FM%20radio%20demodulator_2_0.png)
+![x2](img/FM%20radio%20demodulator_3_0.png)
     
 
-
-
-```python
-fc1 = np.exp(-1.0j*2.0*np.pi * F_offset/Rs*np.arange(len(x1)))
-x2 = x1 * fc1
-
-plt.specgram(x2, NFFT=2048, Fs=Rs, vmin=-140, vmax=-50)
-plt.title("x2")
-plt.xlabel("Time (s)")
-plt.ylabel("Frequency (Hz)")
-plt.ylim(-Rs/2, Rs/2)
-plt.xlim(0, len(x2)/Rs)
-plt.ticklabel_format(style='plain', axis='y')
-plt.savefig('./figure/x2.png', dpi=200, facecolor='#eeeeee')
-plt.show()
-```
-
-
-    
-![png](img/FM%20radio%20demodulator_3_0.png)
-    
-
-
-
+### Specgram of Filtered signal
 ```python
 f_bw = 200000
 
@@ -109,111 +84,32 @@ plt.savefig('./figure/lpf.png', dpi=200, facecolor='#eeeeee')
 plt.show()
 ```
 
-
-    
 ![png](img/FM%20radio%20demodulator_4_0.png)
-    
 
-
-
-    
 ![png](img/FM%20radio%20demodulator_4_1.png)
     
 
 
+### Decimated
 
-```python
-dec_rate = int(Rs / f_bw)
-x4 = x3[0::dec_rate]
-Fs_y = Rs/dec_rate
-
-f_bw = 200000
-dec_rate = int(Rs / f_bw)
-x4 = signal.decimate(x2, dec_rate)
-Fs_y = Rs/dec_rate
-
-plt.specgram(x4, NFFT=2048, Fs=Fs_y)
-plt.title("x4")
-plt.ylim(-Fs_y/2, Fs_y/2)
-plt.xlim(0, len(x4)/Fs_y)
-plt.ticklabel_format(style='plain', axis='y')
-plt.savefig('./figure/x4.png', dpi=200, facecolor='#eeeeee')
-plt.show()
-
-const_samples = np.random.choice(x4, 500)
-plt.scatter(np.real(const_samples), np.imag(const_samples), color="red", alpha=0.05)
-plt.title("x4")
-plt.xlabel("Real")
-plt.xlim(-1.1, 1.1)
-plt.ylabel("Imag")
-plt.ylim(-1.1, 1.1)
-plt.savefig('./figure/constellation .png', dpi=200, facecolor='#eeeeee')
-plt.show()
-```
-
-
-    
 ![png](img/FM%20radio%20demodulator_5_0.png)
     
 
+### Signal Constellation
 
-
-    
 ![png](img/FM%20radio%20demodulator_5_1.png)
-    
 
 
+### PSD in frequency
 
-```python
-y5 = x4[1:] * np.conj(x4[:-1])
-x5 = np.angle(y5)
-
-plt.psd(x5, NFFT=2048, Fs=Fs_y, color="blue")
-plt.title("x5")
-plt.axvspan(0,             15000,         color="red", alpha=0.2)
-plt.axvspan(19000-500,     19000+500,     color="green", alpha=0.4)
-plt.axvspan(19000*2-15000, 19000*2+15000, color="orange", alpha=0.2)
-plt.axvspan(19000*3-1500,  19000*3+1500,  color="blue", alpha=0.2)
-plt.ticklabel_format(style='plain', axis='y')
-plt.savefig('./figure/x5 .png', dpi=200, facecolor='#eeeeee')
-plt.show()
-```
-
-
-    
 ![png](img/FM%20radio%20demodulator_6_0.png)
-    
 
+## Conclusion
 
+RTL-SDR 장비를 활용해 FM 신호를 복조하는 소프트웨어를 개발해보았다.
+더욱 최적화 할 수 있는 방법이 있으나, 실제 라디오에서 사용하는 슬로프 디텍터 등 하드웨어를 모사하기 위해서
+소프트웨어도 이와 유사하게 개발하였다.
 
-```python
-d = Fs_y * 75e-6
-x = np.exp(-1/d)
-b = [1-x]
-a = [1, -x]
-x6 = signal.lfilter(b, a, x5)
-```
-
-
-```python
-audio_freq = 44100.0
-dec_audio = int(Fs_y/audio_freq)
-Fs_audio = Fs_y / dec_audio
-
-x7 = signal.decimate(x6, dec_audio)
-
-x7 *= 10000 / np.max(np.abs(x7))
-x7.astype("int16").tofile("wbfm-mono.raw")
-```
-
-
-```python
-with open("wbfm-mono.raw", 'rb') as opened_pcm_file:
-    pcm_data = opened_pcm_file.read();
-wav_obj = wave.open('wbfm.wav', 'wb')
-wav_obj.setnchannels(1)
-wav_obj.setsampwidth(2)
-wav_obj.setframerate(44100)
-wav_obj.writeframes(pcm_data)
-wav_obj.close()
-```
+이처럼 Numpy와 Scipy를 활용하면, IQ 샘플링된 무선 신호를 내가 원하는 대로 조작할 수 있음을 보였다.
+Scipy 라이브러리로 내가 원하는 필터를 설계하거나, 다운컨버팅 등 다양한 연산을 수행할 수 있고,
+Numpy를 활용해 FFT를 하는 등의 연산을 수행할 수 있었다.
